@@ -71,15 +71,15 @@ export default function BottomSheet({ mapRef }: any) {
     <Drawer.Root open={open} onOpenChange={setOpen}>
       {/* Trigger Button */}
       <Drawer.Trigger asChild>
-        <button className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white p-4 rounded-full shadow-xl z-[9999]">
+        <button className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white p-4 rounded-full shadow-xl z-9999">
           <PiMegaphoneDuotone size={28} />
         </button>
       </Drawer.Trigger>
 
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 bg-black/40 z-[9998]" />
+        <Drawer.Overlay className="fixed inset-0 bg-black/40 z-9998" />
 
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 h-[70vh] bg-white rounded-t-2xl p-5 z-[9999] overflow-y-auto">
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 h-[70vh] bg-white rounded-t-2xl p-5 z-9999 overflow-y-auto">
           <Drawer.Title className="text-lg font-bold mb-4">
             تسجيل بلاغ
           </Drawer.Title>

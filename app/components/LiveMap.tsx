@@ -5,12 +5,15 @@ import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
+import KmlButton from "./KmlButton";
+
 export default function LiveMap({ mapRef }: any) {
   const mapContainer = useRef<HTMLDivElement | null>(null);
-  const mapInstance = useRef<mapboxgl.Map | null>(null);
   const geocoderContainer = useRef<HTMLDivElement | null>(null);
 
+  const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+
   const watchId = useRef<number | null>(null);
   const hasStartedGPS = useRef(false);
 
@@ -29,7 +32,7 @@ export default function LiveMap({ mapRef }: any) {
     mapInstance.current = map;
     mapRef.current = map;
 
-    // 🧭 أدوات الزاوية (يمين فوق)
+    // 🧭 أدوات الزاوية
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     map.addControl(
@@ -41,7 +44,19 @@ export default function LiveMap({ mapRef }: any) {
       "top-right"
     );
 
+    // 🔍 Search (center UI)
     map.on("load", () => {
+      if (geocoderContainer.current) {
+        const geocoder = new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken!,
+          mapboxgl: mapboxgl as any,
+          marker: false,
+          placeholder: "ابحث عن مكان...",
+        });
+
+        geocoderContainer.current.appendChild(geocoder.onAdd(map));
+      }
+
       // 📍 Marker
       const el = document.createElement("div");
       el.style.width = "16px";
@@ -56,20 +71,6 @@ export default function LiveMap({ mapRef }: any) {
       })
         .setLngLat([35.9, 31.9])
         .addTo(map);
-
-      // 🔍 Geocoder (بدون map controls)
-      if (geocoderContainer.current) {
-        const geocoder = new MapboxGeocoder({
-          accessToken: mapboxgl.accessToken!,
-          mapboxgl: mapboxgl as any,
-          marker: false,
-          placeholder: "ابحث عن مكان...",
-        });
-
-        geocoderContainer.current.appendChild(
-          geocoder.onAdd(map)
-        );
-      }
 
       startGPS();
     });
@@ -88,12 +89,10 @@ export default function LiveMap({ mapRef }: any) {
 
         markerRef.current?.setLngLat(newPos);
 
-        if (mapInstance.current) {
-          mapInstance.current.jumpTo({
-            center: newPos,
-            zoom: 16,
-          });
-        }
+        mapInstance.current?.jumpTo({
+          center: newPos,
+          zoom: 16,
+        });
       });
     };
 
@@ -105,13 +104,16 @@ export default function LiveMap({ mapRef }: any) {
 
   return (
     <div className="relative w-full h-screen">
-      {/* 🔍 Search Center Top */}
+      {/* 🔍 Search Center */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-[320px]">
-        <div ref={geocoderContainer} className="w-full" />
+        <div ref={geocoderContainer} />
       </div>
 
       {/* 🗺️ Map */}
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* 🟦 KML Button */}
+      <KmlButton mapRef={mapRef} />
     </div>
   );
 }

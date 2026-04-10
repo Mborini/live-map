@@ -11,6 +11,7 @@
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
     "@radix-ui/react-visually-hidden": "^1.2.4",
+    "@tmcw/togeojson": "^7.1.2",
     "mapbox-gl": "^3.21.0",
     "next": "16.2.3",
     "react": "19.2.4",
