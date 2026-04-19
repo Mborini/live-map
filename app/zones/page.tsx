@@ -48,7 +48,7 @@ const getColor = (id: number) => {
     "#f97316",
     "#6366f1",
     "#ec4899",
-    ,
+    
   ];
   return colors[id % colors.length];
 };
@@ -256,8 +256,7 @@ export default function ZonesPage() {
     const draw = drawRef.current;
     if (!draw) return;
 
-    draw.deleteAll();
-
+drawRef.current?.deleteAll();
     const geom =
       typeof zone.geometry === "string"
         ? JSON.parse(zone.geometry)
@@ -287,8 +286,7 @@ export default function ZonesPage() {
 
   // SAVE
   const handleSave = async () => {
-    const draw = drawRef.current;
-    const all = draw?.getAll();
+    const all = drawRef.current?.getAll();
 
     if (!all?.features.length) {
       notifications.show({
@@ -319,7 +317,7 @@ export default function ZonesPage() {
     if (data.success) {
       form.reset();
       setEditZoneId(null);
-      draw.deleteAll();
+      drawRef.current?.deleteAll();
 
       setZones(await fetch("/api/zones").then((r) => r.json()));
 
