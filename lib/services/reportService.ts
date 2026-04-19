@@ -1,4 +1,4 @@
-
+import { Shift } from "../types/shiftTypes";
 
 const API_URL = "/api/shifts";
 
