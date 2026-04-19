@@ -111,11 +111,11 @@ export default function Dashboard() {
              supervisors
             </Button>
 
-        
+            {session?.user?.role === 1&& (
              <Button component={Link} href="/reports" size="lg" radius="xl">
               📊 Reports
             </Button>
-          
+            )}
            
 
             <Button component={Link} href="/bins" size="lg" radius="xl">

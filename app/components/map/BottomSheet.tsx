@@ -19,6 +19,7 @@ import {
 
 import { notifications } from "@mantine/notifications";
 import { PiMegaphoneDuotone } from "react-icons/pi";
+import { useSession } from "next-auth/react";
 
 type SubType = {
   id: number;
@@ -40,6 +41,7 @@ type Props = {
 export default function BottomSheet({ mapRef }: Props) {
   const [open, setOpen] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const { data: session, status } = useSession();
 
   const [types, setTypes] = useState<ReportType[]>([]);
   const [subTypes, setSubTypes] = useState<SubType[]>([]);
@@ -56,9 +58,9 @@ export default function BottomSheet({ mapRef }: Props) {
   const [shift, setShift] = useState<string | null>(null);
   const [zones, setZones] = useState<any[]>([]);
   const [supervisorName, setSupervisorName] = useState<string>("");
-
+  const [supervisorArea, setSupervisorArea] = useState<string>("");
   const markerRef = useRef<mapboxgl.Marker | null>(null);
-
+  const [supervisorZoneId, setSupervisorZoneId] = useState<number | null>(null);
   // =========================
   // OPEN / CLOSE HANDLERS
   // =========================
@@ -162,20 +164,23 @@ export default function BottomSheet({ mapRef }: Props) {
       await getAddress(c[0], c[1]);
 
       const point = turf.point(c);
-      let found = "";
+      let supervisorName = "";
+      let supervisorArea = "";
 
       for (const zone of zones) {
         if (zone.geometry) {
           const inside = turf.booleanPointInPolygon(point, zone.geometry);
           if (inside) {
-            found = zone.supervisor_name;
+            supervisorName = zone.supervisor_name;
+            supervisorArea = zone.name;
+            setSupervisorZoneId(zone.id);
             break;
           }
         }
       }
 
-      setSupervisorName(found || "No zone found");
-
+      setSupervisorName(supervisorName || "No zone found");
+      setSupervisorArea(supervisorArea || "No zone found");
       if (markerRef.current) markerRef.current.remove();
 
       markerRef.current = new mapboxgl.Marker({ color: "#ef4444" })
@@ -190,28 +195,75 @@ export default function BottomSheet({ mapRef }: Props) {
 
     map.once("click", handleClick);
   };
+  const formatAddress = (addr: any) => {
+    if (!addr) return "";
 
+    return [addr.address, addr.city, addr.country].filter(Boolean).join(", ");
+  };
   // =========================
   // SUBMIT
   // =========================
-  const handleSubmit = useCallback(() => {
-    console.log({
-      type,
-      subType,
-      desc,
-      coords,
-      shift,
-    });
+  const handleSubmit = useCallback(async () => {
+    if (!type || !subType || !coords )
+      return notifications.show({
+        title: "Error",
+        message: "Please fill all required fields",
+        color: "red",
+      });
 
-    notifications.show({
-      title: "Success",
-      message: "Report submitted successfully",
-      color: "green",
-    });
+// remove marker 
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
 
-    closeDrawer();
-  }, [type, subType, desc, coords, shift]);
+    try {
+      const payload = {
+        type,
+        subType,
+        description: desc,
+        shift,
+        coords: coords
+          ? {
+              lng: coords[0],
+              lat: coords[1],
+            }
+          : null,
 
+        // 🔥 دمج العنوان
+        address: formatAddress(address),
+        supervisorZoneId,
+        createdAt: new Date().toISOString(),
+        user_id: session?.user?.id,
+        status: 1,
+      };
+      const res = await fetch("/api/complaints", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to submit report");
+
+      notifications.show({
+        title: "Success",
+        message: "Report submitted successfully",
+        color: "green",
+      });
+
+      closeDrawer();
+    } catch (err) {
+      console.error(err);
+
+      notifications.show({
+        title: "Error",
+        message: "Failed to submit report",
+        color: "red",
+      });
+    }
+  }, [type, subType, desc, coords, shift, address, supervisorName]);
   // =========================
   // UI
   // =========================
@@ -288,7 +340,13 @@ export default function BottomSheet({ mapRef }: Props) {
                 ]}
               />
 
-              <TextInput label="Supervisor" value={supervisorName} disabled />
+              <TextInput
+                label="Supervisor"
+                value={[supervisorName, supervisorArea]
+                  .filter(Boolean)
+                  .join(", ")}
+                disabled
+              />
 
               <Textarea
                 label="Details"
