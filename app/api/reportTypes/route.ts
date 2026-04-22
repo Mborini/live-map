@@ -17,8 +17,8 @@ export async function GET() {
           ) FILTER (WHERE s.id IS NOT NULL),
           '[]'
         ) AS subtypes
-      FROM reporttypes t
-      LEFT JOIN reportsubtypes s 
+      FROM types t
+      LEFT JOIN subtypes s 
         ON s.typeid = t.id
       WHERE t.isactive = true
       GROUP BY t.id

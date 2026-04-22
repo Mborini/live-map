@@ -36,7 +36,7 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      console.log("SIGNIN RESPONSE:", res);
+   
 
       if (res?.error) {
         notifications.show({

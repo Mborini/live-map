@@ -31,8 +31,7 @@ export default function SupervisorDrawer({ opened, onClose, onAdd }: Props) {
     };
 
     loadShifts();
-console.log("Loaded shifts:", shifts);
-    
+
   }, []);
 
   const handleAdd = () => {
