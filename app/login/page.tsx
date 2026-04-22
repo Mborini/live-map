@@ -26,48 +26,27 @@ export default function LoginPage() {
     },
   });
 
-  const handleLogin = async (values: typeof form.values) => {
-    setLoading(true);
+const handleLogin = async (values: typeof form.values) => {
+  setLoading(true);
 
-    try {
-      const res = await signIn("credentials", {
-        username: values.username,
-        password: values.password,
-        redirect: false,
-      });
-
-   
-
-      if (res?.error) {
-        notifications.show({
-          title: "Error",
-          message: res.error,
-          color: "red",
-        });
-        return;
-      }
-
-      if (res?.ok) {
-        notifications.show({
-          title: "Success",
-          message: "Login successful 🚀",
-          color: "green",
-        });
-
-        window.location.href = "/dashboard";
-      }
-    } catch (err) {
-      console.error(err);
-
-      notifications.show({
-        title: "Error",
-        message: "Something went wrong",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    await signIn("credentials", {
+      username: values.username,
+      password: values.password,
+      redirect: true,
+      callbackUrl: "/dashboard",
+    });
+  } catch (err) {
+    console.error(err);
+    notifications.show({
+      title: "Error",
+      message: "Something went wrong",
+      color: "red",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <Box

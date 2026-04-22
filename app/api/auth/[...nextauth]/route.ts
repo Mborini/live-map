@@ -9,6 +9,8 @@ type AppUser = {
 };
 
 const handler = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET, // ✅ ضروري على Vercel
+
   providers: [
     CredentialsProvider({
       credentials: {
@@ -19,7 +21,7 @@ const handler = NextAuth({
       async authorize(credentials) {
         const result = await pool.query(
           "SELECT id, username, password, role FROM users WHERE username = $1",
-          [credentials?.username],
+          [credentials?.username]
         );
 
         if (result.rows.length === 0) return null;
@@ -45,26 +47,22 @@ const handler = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         const u = user as AppUser;
-
-        token.id = u.id; // ✅ FIX HERE
+        token.id = u.id;
         token.role = u.role;
         token.username = u.username;
       }
-
       return token;
     },
 
     async session({ session, token }) {
       session.user = {
         ...session.user,
-        id: token.id as string,       // ✅ FIX HERE
+        id: token.id as string,
         role: token.role as number,
         username: token.username as string,
       };
-
       return session;
     },
   },
 });
-
 export { handler as GET, handler as POST };
