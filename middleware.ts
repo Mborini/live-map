@@ -7,7 +7,8 @@ export async function middleware(req: NextRequest) {
     req,
     secret: process.env.NEXTAUTH_SECRET, // ✅ مهم
   });
-
+console.log("TOKEN:", token);
+console.log("PATH:", req.nextUrl.pathname);
   const isLoginPage = req.nextUrl.pathname === "/login";
   const isAuth = !!token;
 
