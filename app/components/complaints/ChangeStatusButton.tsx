@@ -6,7 +6,7 @@ import { useDisclosure } from "@mantine/hooks";
 
 type Props = {
   complaintId: number;
-  onSubmit: (id: number, status: number, description: string) => void;
+  onSubmit: (id: number, status: number, description: string) => Promise<void>;
 };
 
 export default function ChangeStatusButton({ complaintId, onSubmit }: Props) {
@@ -14,10 +14,10 @@ export default function ChangeStatusButton({ complaintId, onSubmit }: Props) {
   const [status, setStatus] = useState<number | null>(null);
   const [description, setDescription] = useState("");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!status || !description.trim()) return;
 
-    onSubmit(complaintId, status, description);
+    await onSubmit(complaintId, status, description);
     setStatus(null);
     setDescription("");
     close();
@@ -43,9 +43,9 @@ export default function ChangeStatusButton({ complaintId, onSubmit }: Props) {
             placeholder="اختر الحالة"
             required
             data={[
-              { value: "2", label: "In Progress" },
-              { value: "3", label: "Resolved" },
-              { value: "4", label: "Rejected" },
+              { value: "2", label: "قيد المعالجة" },
+              { value: "3", label: "مغلقة" },
+              { value: "4", label: "مرفوضة" },
             ]}
             value={status?.toString()}
             onChange={(value) => setStatus(value ? parseInt(value) : null)}
@@ -65,10 +65,7 @@ export default function ChangeStatusButton({ complaintId, onSubmit }: Props) {
             <Button variant="default" onClick={close}>
               إلغاء
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!status || !description.trim()}
-            >
+            <Button onClick={handleSubmit} disabled={!status || !description.trim()}>
               حفظ
             </Button>
           </Group>

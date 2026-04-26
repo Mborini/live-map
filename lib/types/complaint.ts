@@ -15,4 +15,5 @@ export type Complaint = {
   supervisor_id?: number;
   supervisor_name?: string;
   username?: string;
+  status_id: number;
 };

@@ -30,6 +30,8 @@ type Zone = {
   geometry: any;
   supervisor_id: number;
   supervisor_name: string;
+  shift_id: number;
+  shift_name: string;
 };
 
 // 🎨 colors per zone
@@ -67,10 +69,12 @@ export default function ZonesPage() {
     initialValues: {
       name: "",
       supervisor_id: "",
+      shift: 1,
     },
     validate: {
       name: (v) => (v.trim().length < 2 ? "Zone name required" : null),
       supervisor_id: (v) => (!v ? "Supervisor required" : null),
+      shift: (v) => (!v ? "Shift required" : null),
     },
   });
 
@@ -83,7 +87,16 @@ export default function ZonesPage() {
     if (type === "layer" && map.getLayer(id)) map.removeLayer(id);
     if (type === "source" && map.getSource(id)) map.removeSource(id);
   };
+useEffect(() => {
+  const load = async () => {
+    const res = await fetch("/api/zones");
+    const data = await res.json();
 
+    setZones(Array.isArray(data) ? data : []);
+  };
+
+  load();
+}, []);
   // INIT MAP
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -309,6 +322,7 @@ drawRef.current?.deleteAll();
         name: form.values.name,
         supervisor_id: Number(form.values.supervisor_id),
         geometry: feature.geometry,
+        shift: Number(form.values.shift),
       }),
     });
 
@@ -360,6 +374,16 @@ drawRef.current?.deleteAll();
             }))}
             {...form.getInputProps("supervisor_id")}
           />
+          <Select
+            label="Shift"
+            required
+            data={[
+              { value: 1, label: "A" },
+              { value: 2, label: "B" },
+              { value: 3, label: "C" },
+            ]}
+            {...form.getInputProps("shift")}
+          />
 
           <Button onClick={handleSave} disabled={!form.isValid()}>
             {editZoneId ? "Update" : "Save"}
@@ -380,6 +404,9 @@ drawRef.current?.deleteAll();
                       <Text fw={600}>{z.name}</Text>
                       <Text size="xs" c="dimmed">
                         {z.supervisor_name}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {z.shift_name}
                       </Text>
                     </div>
 

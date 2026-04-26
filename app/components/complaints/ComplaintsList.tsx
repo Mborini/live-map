@@ -14,12 +14,12 @@ import ComplaintCard from "./ComplaintCard";
 export default function ComplaintsList({
   complaints,
   onFocus,
-  onStatusChange,
+  
+  
   focusedId,
 }: {
   complaints: Complaint[];
   onFocus: (c: Complaint) => void;
-  onStatusChange: (id: number, status: number) => void;
   focusedId: number | null;
 }) {
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -61,7 +61,6 @@ export default function ComplaintsList({
                 complaint={c}
                 selected={focusedId === c.id}
                 onClick={() => onFocus(c)}
-                onStatusChange={onStatusChange}
               />
             </div>
           ))}

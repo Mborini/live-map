@@ -24,13 +24,11 @@ import { useSession } from "next-auth/react";
 type SubType = {
   id: number;
   name: string;
-  code: string;
 };
 
 type ReportType = {
   id: number;
   name: string;
-  code: string;
   subtypes: SubType[];
 };
 
@@ -39,278 +37,228 @@ type Props = {
 };
 
 export default function BottomSheet({ mapRef }: Props) {
+  const { data: session } = useSession();
+
+  // ===== UI =====
   const [open, setOpen] = useState(false);
   const [animating, setAnimating] = useState(false);
-  const { data: session, status } = useSession();
 
+  // ===== Types =====
   const [types, setTypes] = useState<ReportType[]>([]);
   const [subTypes, setSubTypes] = useState<SubType[]>([]);
-
   const [type, setType] = useState<string | null>(null);
   const [subType, setSubType] = useState<string | null>(null);
 
+  // ===== Report =====
   const [desc, setDesc] = useState("");
   const [image, setImage] = useState<File | null>(null);
 
+  // ===== Location =====
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const [address, setAddress] = useState<any>({});
+  const markerRef = useRef<mapboxgl.Marker | null>(null);
 
+  // ===== Shift & Zones =====
   const [shift, setShift] = useState<string | null>(null);
   const [zones, setZones] = useState<any[]>([]);
-  const [supervisorName, setSupervisorName] = useState<string>("");
-  const [supervisorArea, setSupervisorArea] = useState<string>("");
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const [filteredZones, setFilteredZones] = useState<any[]>([]);
+  const [supervisorName, setSupervisorName] = useState("");
+  const [supervisorArea, setSupervisorArea] = useState("");
   const [supervisorZoneId, setSupervisorZoneId] = useState<number | null>(null);
-  // =========================
-  // OPEN / CLOSE HANDLERS
-  // =========================
-  const openDrawer = useCallback(() => {
-    if (animating) return;
 
+  // ===== Drawer helpers =====
+  const openDrawer = () => {
+    if (animating) return;
     setAnimating(true);
     setOpen(true);
-
-    setTimeout(() => setAnimating(false), 300);
-  }, [animating]);
-
-  const closeDrawer = useCallback(() => {
-    if (animating) return;
-
-    setAnimating(true);
-    setOpen(false);
-
-    setTimeout(() => setAnimating(false), 300);
-  }, [animating]);
-
-  // =========================
-  // LOAD TYPES
-  // =========================
-  useEffect(() => {
-    const loadTypes = async () => {
-      try {
-        const res = await fetch("/api/reportTypes");
-        const data = await res.json();
-
-        if (Array.isArray(data)) setTypes(data);
-        else if (data.rows) setTypes(data.rows);
-        else setTypes([data]);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadTypes();
-  }, []);
-
-  // =========================
-  // LOAD ZONES
-  // =========================
-  useEffect(() => {
-    const loadZones = async () => {
-      try {
-        const res = await fetch("/api/zones");
-        const data = await res.json();
-        setZones(data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadZones();
-  }, []);
-
-  // =========================
-  // ADDRESS
-  // =========================
-  const getAddress = async (lng: number, lat: number) => {
-    try {
-      const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}&language=ar`,
-      );
-
-      const data = await res.json();
-      const features = data?.features || [];
-
-      const get = (type: string) =>
-        features.find((f: any) => f.place_type?.includes(type))?.text || "";
-
-      setAddress({
-        address: get("address"),
-        poi: get("poi"),
-        city: get("place"),
-        country: get("country"),
-      });
-    } catch (err) {
-      console.error(err);
-    }
+    setTimeout(() => setAnimating(false), 250);
   };
 
-  // =========================
-  // PICK LOCATION
-  // =========================
+  const closeDrawer = () => {
+    if (animating) return;
+    setAnimating(true);
+    setOpen(false);
+    setTimeout(() => setAnimating(false), 250);
+  };
+
+  // ===== Load types =====
+  useEffect(() => {
+    fetch("/api/reportTypes")
+      .then((r) => r.json())
+      .then((d) => setTypes(Array.isArray(d) ? d : d.rows || []));
+  }, []);
+
+  // ===== Load zones =====
+  useEffect(() => {
+    fetch("/api/zones")
+      .then((r) => r.json())
+      .then((d) => setZones(d));
+  }, []);
+
+  // ===== Filter zones by shift =====
+  useEffect(() => {
+    if (!shift) {
+      setFilteredZones([]);
+      return;
+    }
+    setFilteredZones(zones.filter((z) => String(z.shift_id) === String(shift)));
+  }, [shift, zones]);
+
+  // ===== Reverse geocode =====
+  const getAddress = async (lng: number, lat: number) => {
+    const res = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}&language=ar`,
+    );
+    const data = await res.json();
+    const f = data.features || [];
+
+    const get = (k: string) =>
+      f.find((x: any) => x.place_type?.includes(k))?.text || "";
+
+    setAddress({
+      address: get("address"),
+      city: get("place"),
+      country: get("country"),
+    });
+  };
+
+  // ===== Pick location =====
   const enableManualPick = () => {
-    if (!mapRef?.current) return;
+    if (!shift) {
+      notifications.show({
+        title: "تنبيه",
+        message: "اختر الشِفت أولاً",
+        color: "yellow",
+      });
+      return;
+    }
 
     const map = mapRef.current;
+    if (!map) return;
 
     closeDrawer();
-
     map.getCanvas().style.cursor = "crosshair";
 
     const handleClick = async (e: mapboxgl.MapMouseEvent) => {
       const c: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-
-      setCoords(c);
-      await getAddress(c[0], c[1]);
-
       const point = turf.point(c);
-      let supervisorName = "";
-      let supervisorArea = "";
 
-      for (const zone of zones) {
-        if (zone.geometry) {
-          const inside = turf.booleanPointInPolygon(point, zone.geometry);
-          if (inside) {
-            supervisorName = zone.supervisor_name;
-            supervisorArea = zone.name;
-            setSupervisorZoneId(zone.id);
-            break;
-          }
+      let foundZone: any = null;
+
+      for (const z of filteredZones) {
+        if (!z.geometry) continue;
+
+        const geom =
+          typeof z.geometry === "string" ? JSON.parse(z.geometry) : z.geometry;
+
+        if (turf.booleanPointInPolygon(point, geom)) {
+          foundZone = z;
+          break;
         }
       }
 
-      setSupervisorName(supervisorName || "No zone found");
-      setSupervisorArea(supervisorArea || "No zone found");
-      if (markerRef.current) markerRef.current.remove();
+      // ❌ خارج المنطقة → نخلي الأداة شغالة
+      if (!foundZone) {
+        notifications.show({
+          title: "تنبيه",
+          message: "الموقع خارج المنطقة، الرجاء اختيار موقع داخل المنطقة",
+          color: "yellow",
+        });
+        return;
+      }
 
+      // ✅ داخل المنطقة
+      setCoords(c);
+      await getAddress(c[0], c[1]);
+
+      setSupervisorName(foundZone.supervisor_name);
+      setSupervisorArea(foundZone.name);
+      setSupervisorZoneId(foundZone.id);
+
+      markerRef.current?.remove();
       markerRef.current = new mapboxgl.Marker({ color: "#ef4444" })
         .setLngLat(c)
         .addTo(map);
 
+      // ✅ نوقف الأداة هنا فقط
       map.getCanvas().style.cursor = "";
       map.off("click", handleClick);
 
-      setTimeout(() => openDrawer(), 150);
+      setTimeout(openDrawer, 150);
     };
 
-    map.once("click", handleClick);
+    // ✅ مهم: on وليس once
+    map.on("click", handleClick);
   };
-  const formatAddress = (addr: any) => {
-    if (!addr) return "";
-
-    return [addr.address, addr.city, addr.country].filter(Boolean).join(", ");
-  };
-  // =========================
-  // SUBMIT
-  // =========================
-  const handleSubmit = useCallback(async () => {
-    if (!type || !subType || !coords )
-      return notifications.show({
-        title: "Error",
-        message: "Please fill all required fields",
+  // ===== Submit =====
+  const handleSubmit = async () => {
+    if (!type || !subType || !coords || !supervisorZoneId) {
+      notifications.show({
+        title: "خطأ",
+        message: "يرجى تعبئة جميع الحقول",
         color: "red",
       });
-
-// remove marker 
-      if (markerRef.current) {
-        markerRef.current.remove();
-        markerRef.current = null;
-      }
-
-    try {
-      const payload = {
-        type,
-        subType,
-        description: desc,
-        shift,
-        coords: coords
-          ? {
-              lng: coords[0],
-              lat: coords[1],
-            }
-          : null,
-
-        // 🔥 دمج العنوان
-        address: formatAddress(address),
-        supervisorZoneId,
-        createdAt: new Date().toISOString(),
-        user_id: session?.user?.id,
-        status: 1,
-      };
-      const res = await fetch("/api/complaints", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("Failed to submit report");
-
-      notifications.show({
-        title: "Success",
-        message: "Report submitted successfully",
-        color: "green",
-      });
-
-      closeDrawer();
-    } catch (err) {
-      console.error(err);
-
-      notifications.show({
-        title: "Error",
-        message: "Failed to submit report",
-        color: "red",
-      });
+      return;
     }
-  }, [type, subType, desc, coords, shift, address, supervisorName]);
-  // =========================
-  // UI
-  // =========================
+
+    const fullAddress = [address.address, address.city, address.country]
+      .filter(Boolean)
+      .join(", ");
+
+    const formData = new FormData();
+    formData.append("type", type);
+    formData.append("subType", subType);
+    formData.append("description", desc);
+    formData.append("shift", shift!);
+    formData.append("lng", String(coords[0]));
+    formData.append("lat", String(coords[1]));
+    formData.append("address", fullAddress);
+    formData.append("supervisorZoneId", String(supervisorZoneId));
+    formData.append("user_id", String(session?.user?.id || ""));
+
+    if (image) {
+      formData.append("image", image);
+    }
+
+    await fetch("/api/complaints", {
+      method: "POST",
+      body: formData,
+    });
+
+    notifications.show({
+      title: "تم",
+      message: "تم إرسال البلاغ بنجاح",
+      color: "green",
+    });
+
+    closeDrawer();
+  };
+
+  // ===== UI =====
   return (
     <>
-      {/* Floating Button */}
       {!open && (
         <button
           onClick={openDrawer}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-500 text-white p-4 rounded-full shadow-xl "
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-500 text-white p-4 rounded-full"
         >
           <PiMegaphoneDuotone size={26} />
         </button>
       )}
 
-      {/* DRAWER */}
-      <Drawer
-        opened={open}
-        onClose={closeDrawer}
-        title="Add New Report"
-        position="bottom"
-        size="70%"
-        overlayProps={{ opacity: 0.4, blur: 3 }}
-        radius="lg"
-        transitionProps={{
-          transition: "slide-up",
-          duration: 250,
-          timingFunction: "ease",
-        }}
-        style={{ zIndex: 9999 }}
-      >
+      <Drawer opened={open} onClose={closeDrawer} position="bottom" size="70%">
         <Grid>
-          {/* LEFT */}
           <Grid.Col span={6}>
-            <Stack gap="sm">
+            <Stack>
               <Select
                 label="Type"
                 value={type}
-                onChange={(value) => {
-                  setType(value);
+                onChange={(v) => {
+                  setType(v);
                   setSubType(null);
-
-                  const selectedType = types.find(
-                    (t) => String(t.id) === String(value),
+                  setSubTypes(
+                    types.find((t) => String(t.id) === v)?.subtypes || [],
                   );
-
-                  setSubTypes(selectedType?.subtypes || []);
                 }}
                 data={types.map((t) => ({
                   value: String(t.id),
@@ -342,9 +290,7 @@ export default function BottomSheet({ mapRef }: Props) {
 
               <TextInput
                 label="Supervisor"
-                value={[supervisorName, supervisorArea]
-                  .filter(Boolean)
-                  .join(", ")}
+                value={`${supervisorName} - ${supervisorArea}`}
                 disabled
               />
 
@@ -354,46 +300,36 @@ export default function BottomSheet({ mapRef }: Props) {
                 onChange={(e) => setDesc(e.currentTarget.value)}
               />
 
-              <FileInput label="Image" value={image} onChange={setImage} />
+              <FileInput
+                label="Image"
+                value={image}
+                onChange={setImage}
+                accept="image/*"
+              />
 
-              <Button variant="light" onClick={enableManualPick}>
+              <Button onClick={enableManualPick} disabled={!shift}>
                 🖱️ Pick location
               </Button>
 
-              <Button
-                color="green"
-                disabled={!coords || !type || !subType}
-                onClick={handleSubmit}
-              >
+              <Button color="green" onClick={handleSubmit}>
                 Save
               </Button>
             </Stack>
           </Grid.Col>
 
-          {/* RIGHT */}
           <Grid.Col span={6}>
-            <Stack gap="sm">
-              <Paper p="sm" withBorder h={180}>
-                <Text fw={600}>Location</Text>
-
-                {coords ? (
-                  <Text size="xs">
-                    {address.country} - {address.city}
-                  </Text>
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    No location selected
-                  </Text>
-                )}
-              </Paper>
-
-              <Paper p="sm" withBorder h={180}>
-                <Text fw={600}>Note</Text>
-                <Text size="xs" c="dimmed">
-                  Select location to auto detect supervisor
-                </Text>
-              </Paper>
-            </Stack>
+            <Paper withBorder p="sm">
+              <Text fw={600}>Location Info</Text>
+              {coords ? (
+                <>
+                  <Text size="sm">📍 {address.address}</Text>
+                  <Text size="sm">🏙️ {address.city}</Text>
+                  <Text size="sm">🌍 {address.country}</Text>
+                </>
+              ) : (
+                <Text c="dimmed">No location selected</Text>
+              )}
+            </Paper>
           </Grid.Col>
         </Grid>
       </Drawer>

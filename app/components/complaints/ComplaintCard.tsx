@@ -30,12 +30,11 @@ const statusColor: Record<string, string> = {
 export default function ComplaintCard({
   complaint,
   onClick,
-  onStatusChange,
   selected,
+  
 }: {
   complaint: Complaint;
   onClick: () => void;
-  onStatusChange: (id: number, status: number) => void;
   selected?: boolean;
   userId?: number;
 }) {
@@ -50,32 +49,17 @@ export default function ComplaintCard({
   }, [selected, open, close]);
 
   const badgeColor =
-    statusColor[complaint.status_name ?? ""] ?? "gray";
+    statusColor[complaint.status_id == 1
+      ? "new"
+      : complaint.status_id == 2
+      ? "in_progress"
+      : complaint.status_id == 3
+      ? "resolved"
+      : complaint.status_id == 4
+      ? "rejected"
+      : "gray"];
 
-async function createComplaintHistory(
-  complaintId: number,
-  status: number,
-  description: string
-) {
-  const res = await fetch("/api/complaint-history", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      complaintId,
-      status,
-      description,
-      userId
-    }),
-  });
 
-  if (!res.ok) {
-    throw new Error("Failed to create complaint history");
-  }
-
-  return res.json();
-}
   return (
     <Paper withBorder p="md" radius="lg" onClick={onClick}>
       {/* Header */}
@@ -143,11 +127,20 @@ async function createComplaintHistory(
 <ChangeStatusButton
   complaintId={complaint.id}
   onSubmit={async (id, status, description) => {
-    // 1️⃣ Update status
-    onStatusChange(id, status);
+    await fetch("/api/complaints/update-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        complaintId: id,
+        status,
+        description,
+        userId, // من session
+      }),
+    });
 
-    // 2️⃣ Insert history
-    await createComplaintHistory(id, status, description);
+    // (اختياري) إعادة تحميل البيانات
   }}
 />
 

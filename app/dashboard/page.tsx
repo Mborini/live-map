@@ -110,6 +110,9 @@ export default function Dashboard() {
             <Button component={Link} href="/complaints" size="lg" radius="xl">
               Complaints
             </Button>
+            <Button component={Link} href="/FollowupsPage" size="lg" radius="xl">
+              Complaint History
+            </Button>
             <Button component={Link} href="/supervisors" size="lg" radius="xl">
              supervisors
             </Button>
