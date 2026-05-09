@@ -1,153 +1,81 @@
 "use client";
 
-import Link from "next/link";
-import { useSession, signIn, signOut } from "next-auth/react";
-import {
-  Center,
-  Loader,
-  Button,
-  Box,
-  Paper,
-  Group,
-  Avatar,
-  Text,
-  Stack,
-} from "@mantine/core";
+import { SimpleGrid, Card, Text, Group, Stack } from "@mantine/core";
+import { IconAlertCircle, IconChartBar } from "@tabler/icons-react";
 
-export default function Dashboard() {
-  const { data: session, status } = useSession();
+import { LineChartComponent } from "../components/charts/LineChartComponent";
+import { BarChartComponent } from "../components/charts/BarChartComponent";
+import { ChartContainer } from "../components/charts/ChartContainer";
 
-  // ⏳ Loading
-  if (status === "loading") {
-    return (
-      <Center h="100dvh">
-        <Loader size="lg" />
-      </Center>
-    );
-  }
+/* ✅ Example Data */
+const lineData = [
+  { name: "Jan", value: 12 },
+  { name: "Feb", value: 19 },
+  { name: "Mar", value: 7 },
+  { name: "Apr", value: 14 },
+];
 
-  // ❌ Not logged in
-  if (!session) {
-    return (
-      <Center h="100dvh">
-        <Button onClick={() => signIn()} size="md">
-          Go Login
-        </Button>
-      </Center>
-    );
-  }
+const barData = [
+  { name: "Zone A", value: 32 },
+  { name: "Zone B", value: 18 },
+  { name: "Zone C", value: 25 },
+];
 
+export default function DashboardPage() {
   return (
-    <Box
-      style={{
-        position: "relative",
-        height: "100dvh",
-        overflow: "hidden",
-        backgroundImage: "url('/toolbg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      {/* overlay */}
-      <Box
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,0.4)",
-        }}
-      />
+    <Stack gap="lg">
+      {/* 🔹 KPI CARDS */}
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+        <KpiCard
+          title="Total Complaints"
+          value="124"
+          icon={<IconAlertCircle size={18} />}
+        />
+        <KpiCard
+          title="Resolved"
+          value="96"
+          icon={<IconChartBar size={18} />}
+        />
+        <KpiCard title="Pending" value="18" />
+        <KpiCard title="Critical" value="10" />
+      </SimpleGrid>
 
-      {/* 👤 Top User Bar */}
-      <Group
-        style={{
-          position: "absolute",
-          top: 20,
-          right: 20,
-          zIndex: 10,
-          background: "rgba(255,255,255,0.9)",
-          backdropFilter: "blur(10px)",
-          borderRadius: "999px",
-          padding: "6px 10px",
-        }}
-        gap="xs"
-      >
-        <Avatar src={session.user?.image || ""} radius="xl" size="sm" />
+      {/* 🔸 CHARTS */}
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+        <ChartContainer title="Complaints Trend">
+          <LineChartComponent data={lineData} xKey="name" yKey="value" />
+        </ChartContainer>
 
-        <Text size="sm" fw={600}>
-          {session.user?.name || "User"}
+        <ChartContainer title="Complaints by Zone">
+          <BarChartComponent data={barData} xKey="name" yKey="value" />
+        </ChartContainer>
+      </SimpleGrid>
+    </Stack>
+  );
+}
+
+/* ✅ KPI CARD COMPONENT */
+function KpiCard({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <Card shadow="sm" radius="lg" p="md">
+      <Group justify="space-between">
+        <Text size="sm" c="dimmed">
+          {title}
         </Text>
-
-        <Button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          size="xs"
-          color="red"
-          radius="xl"
-          variant="light"
-        >
-          Logout
-        </Button>
+        {icon}
       </Group>
 
-      {/* 🎯 Center Menu */}
-      <Center style={{ height: "100%", position: "relative", zIndex: 5 }}>
-        <Paper
-          shadow="xl"
-          p="xl"
-          radius="xl"
-          style={{
-            backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(255,255,255,0.1)",
-            minWidth: 300,
-          }}
-        >
-          <Stack>
-            <Button component={Link} href="/map" size="lg" radius="xl">
-              🗺️ Map
-            </Button>
-            <Button component={Link} href="/zones" size="lg" radius="xl">
-             Zones
-            </Button>
-            <Button component={Link} href="/complaints" size="lg" radius="xl">
-              Complaints
-            </Button>
-            <Button component={Link} href="/FollowupsPage" size="lg" radius="xl">
-              Complaint History
-            </Button>
-            <Button component={Link} href="/supervisors" size="lg" radius="xl">
-             supervisors
-            </Button>
-
-            {session?.user?.role === 1&& (
-             <Button component={Link} href="/reports" size="lg" radius="xl">
-              📊 Reports
-            </Button>
-            )}
-           
-
-            <Button component={Link} href="/bins" size="lg" radius="xl">
-              Bins
-            </Button>
-
-            <Button component={Link} href="/routes" size="lg" radius="xl">
-              Routes
-            </Button>
-
-            <Button component={Link} href="/users" size="lg" radius="xl">
-              Users
-            </Button>
-
-            <Button
-              component={Link}
-              href="/settings"
-              size="lg"
-              radius="xl"
-              color="dark"
-            >
-              Settings
-            </Button>
-          </Stack>
-        </Paper>
-      </Center>
-    </Box>
+      <Text size="xl" fw={700} mt={4}>
+        {value}
+      </Text>
+    </Card>
   );
 }

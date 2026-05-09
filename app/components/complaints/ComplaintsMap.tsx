@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
+import { createRoot } from "react-dom/client";
 import { Complaint } from "@/lib/types/complaint";
+import { ComplaintPopup } from "./ComplaintPopup";
+import { ComplaintPopupRoot } from "./ComplaintPopupRoot";
 
 const statusColorByName: Record<string, string> = {
   new: "red",
@@ -24,11 +27,12 @@ export default function ComplaintsMap({
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const focusMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
-  // إنشاء الخريطة
+  // ===== Create map =====
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
+    mapboxgl.accessToken =
+      process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -48,15 +52,13 @@ export default function ComplaintsMap({
     };
   }, []);
 
-  // Markers + popup
+  // ===== All markers =====
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
-
-    const focusedId = focused?.id ?? null;
 
     complaints.forEach((c) => {
       if (!c.lng || !c.lat) return;
@@ -65,48 +67,29 @@ export default function ComplaintsMap({
       const lat = Number(c.lat);
       if (Number.isNaN(lng) || Number.isNaN(lat)) return;
 
-      const isSelected = focusedId === c.id;
-
       const el = document.createElement("div");
-      el.style.width = isSelected ? "18px" : "14px";
-      el.style.height = isSelected ? "18px" : "14px";
+      el.style.width = "14px";
+      el.style.height = "14px";
       el.style.borderRadius = "50%";
-
-      const status = (c as any).status_name ?? "new";
-      el.style.background = statusColorByName[status] ?? "green";
-      el.style.border = isSelected ? "3px solid #228be6" : "2px solid white";
+      el.style.background =
+        statusColorByName[(c as any).status_name ?? "new"];
+      el.style.border = "2px solid red";
       el.style.boxShadow = "0 6px 14px rgba(0,0,0,0.25)";
       el.style.cursor = "pointer";
 
-      const title =
-        (c as any).type_name
-          ? `${(c as any).type_name}${
-              (c as any).sub_type_name ? " - " + (c as any).sub_type_name : ""
-            }`
-          : "Complaint";
 
-      const popupHtml = `
-        <div class="complaint-popup">
-          <div class="popup-header">
-            <span class="popup-title">${title}</span>
-            <span class="popup-status ${status}">
-              ${status.replace("_", " ")}
-            </span>
-          </div>
-          <div class="popup-body">
-            ${(c as any).description ?? "لا يوجد وصف"}
-          </div>
-        </div>
-      `;
-
+const popupContainer = document.createElement("div");
+createRoot(popupContainer).render(
+  <ComplaintPopupRoot complaint={c} />
+);
       const marker = new mapboxgl.Marker(el)
         .setLngLat([lng, lat])
         .setPopup(
           new mapboxgl.Popup({
-            offset: 18,
-            className: "complaint-mapbox-popup",
+            offset: 20,
             closeButton: false,
-          }).setHTML(popupHtml)
+            className: "mantine-mapbox-popup",
+          }).setDOMContent(popupContainer)
         )
         .addTo(map);
 
@@ -117,9 +100,9 @@ export default function ComplaintsMap({
 
       markersRef.current.push(marker);
     });
-  }, [complaints, focused?.id, onSelect]);
+  }, [complaints, onSelect]);
 
-  // Focused marker + flyTo
+  // ===== Focused marker =====
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -137,31 +120,27 @@ export default function ComplaintsMap({
     focusMarkerRef.current?.remove();
 
     const pin = document.createElement("div");
-    pin.className = "focused-pin";
+    pin.style.width = "22px";
+    pin.style.height = "22px";
+    pin.style.borderRadius = "50%";
+    pin.style.background = "#ef4444";
+    pin.style.border = "3px solid white";
+    pin.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
 
-    const title =
-      (focused as any).type_name ??
-      "Complaint";
+ const popupContainer = document.createElement("div");
 
-    const popupHtml = `
-      <div class="complaint-popup">
-        <div class="popup-header">
-          <span class="popup-title">📌 ${title}</span>
-        </div>
-        <div class="popup-body">
-          ${(focused as any).description ?? "لا يوجد وصف"}
-        </div>
-      </div>
-    `;
+createRoot(popupContainer).render(
+  <ComplaintPopupRoot complaint={focused} />
+);
 
     const marker = new mapboxgl.Marker(pin)
       .setLngLat([lng, lat])
       .setPopup(
         new mapboxgl.Popup({
-          offset: 24,
-          className: "complaint-mapbox-popup",
+          offset: 26,
           closeButton: false,
-        }).setHTML(popupHtml)
+          className: "mantine-mapbox-popup",
+        }).setDOMContent(popupContainer)
       )
       .addTo(map);
 

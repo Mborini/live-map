@@ -16,4 +16,9 @@ export type Complaint = {
   supervisor_name?: string;
   username?: string;
   status_id: number;
+  shift_name?: string;
+  zone_name?: string;
+  image_url?: string;
+  sub_type_name?: string;
+  
 };

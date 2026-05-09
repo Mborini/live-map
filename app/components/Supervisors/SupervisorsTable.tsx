@@ -47,9 +47,7 @@ export default function SupervisorsTable({
           <Table.Tr>
             <Table.Th>Name</Table.Th>
             <Table.Th>Phone</Table.Th>
-            <Table.Th>Shift</Table.Th>
-            <Table.Th>Status</Table.Th>
-            <Table.Th ta="right">Actions</Table.Th>
+            
           </Table.Tr>
         </Table.Thead>
 
@@ -67,23 +65,11 @@ export default function SupervisorsTable({
               <Table.Tr key={s.id}>
                 <Table.Td fw={500}>{s.name}</Table.Td>
                 <Table.Td c="dimmed">{s.phone}</Table.Td>
-                <Table.Td c="dimmed">{s.shift}</Table.Td>
+                
 
-                <Table.Td>
-                  <Badge color={s.active ? "green" : "red"} variant="light">
-                    {s.active ? "Active" : "Inactive"}
-                  </Badge>
-                </Table.Td>
+               
 
-                <Table.Td ta="right">
-                  <Button
-                    size="xs"
-                    variant="light"
-                    onClick={() => onToggle(s.id, s.active)}
-                  >
-                    Toggle
-                  </Button>
-                </Table.Td>
+                
               </Table.Tr>
             ))
           )}
@@ -94,7 +80,7 @@ export default function SupervisorsTable({
       <Divider mt="md" mb="xs" />
 
       <Text size="xs" c="dimmed">
-        Total: {data.length} | Active: {data.filter((s) => s.active).length}
+        Total: {data.length}
       </Text>
     </Paper>
   );

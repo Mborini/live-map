@@ -26,36 +26,34 @@ export default function LoginPage() {
     },
   });
 
-const handleLogin = async (values: typeof form.values) => {
-  setLoading(true);
+  const handleLogin = async (values: typeof form.values) => {
+    setLoading(true);
 
-  try {
-    await signIn("credentials", {
-      username: values.username,
-      password: values.password,
-      redirect: true,
-      callbackUrl: "/dashboard",
-    });
-  } catch (err) {
-    console.error(err);
-    notifications.show({
-      title: "Error",
-      message: "Something went wrong",
-      color: "red",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      await signIn("credentials", {
+        username: values.username,
+        password: values.password,
+        redirect: true,
+        callbackUrl: "/dashboard",
+      });
+    } catch (err) {
+      console.error(err);
+      notifications.show({
+        title: "Error",
+        message: "Something went wrong",
+        color: "red",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box
       style={{
         minHeight: "100vh",
         position: "relative",
-        backgroundImage: "url('/toolbg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

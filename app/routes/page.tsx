@@ -15,8 +15,13 @@ import {
   Stack,
   FileInput,
 } from "@mantine/core";
-import { useDisclosure, useMediaQuery } from "@mantine/hooks";
-import { FaTrash, FaUpload } from "react-icons/fa";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  IconTrash,
+  IconUpload,
+  IconRoute,
+  IconUserPlus,
+} from "@tabler/icons-react";
 
 type Route = {
   id: number;
@@ -24,15 +29,18 @@ type Route = {
   file?: File | null;
 };
 
+const PAGE_SIZE = 5;
+
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [page, setPage] = useState(1);
+
   const [opened, { open, close }] = useDisclosure(false);
 
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  /* ================= ACTIONS ================= */
 
-  // ➕ Add Route
   const handleAddRoute = () => {
     if (!name.trim()) return;
 
@@ -43,80 +51,59 @@ export default function RoutesPage() {
     };
 
     setRoutes((prev) => [...prev, newRoute]);
-
     setName("");
     setFile(null);
     close();
   };
 
-  // ❌ Delete
   const handleDelete = (id: number) => {
     setRoutes((prev) => prev.filter((r) => r.id !== id));
   };
 
-  return (
-    <Container size="lg" py="md">
-      {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Title order={isMobile ? 3 : 2}>Routes</Title>
+  /* ================= PAGINATION ================= */
 
-        <Button size={isMobile ? "xs" : "sm"} onClick={open}>
-          + Add Route
+  const totalPages = Math.max(1, Math.ceil(routes.length / PAGE_SIZE));
+  const paginatedRoutes = routes.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
+  /* ================= RENDER ================= */
+
+  return (
+    <Container size="lg">
+      {/* HEADER */}
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={2}>Routes Management</Title>
+          <Text size="sm" c="dimmed">
+            Manage routes and uploaded files
+          </Text>
+        </div>
+
+        <Button
+          leftSection={<IconUserPlus size={18} />}
+          onClick={open}
+        >
+          Add Route
         </Button>
       </Group>
 
-      {/* 📱 Mobile View */}
-      {isMobile ? (
-        <Stack>
-          {routes.length === 0 ? (
-            <Text ta="center" c="dimmed">
-              No routes yet
-            </Text>
-          ) : (
-            routes.map((route, index) => (
-              <Card key={route.id} shadow="sm" radius="md" p="md">
-                <Group justify="space-between">
-                  <div>
-                    <Text fw={600}>{route.name}</Text>
-
-                    <Text size="xs" c="dimmed">
-                      #{index + 1}
-                    </Text>
-
-                    {route.file && (
-                      <Text size="xs" c="blue">
-                        {route.file.name}
-                      </Text>
-                    )}
-                  </div>
-
-                  <ActionIcon
-                    color="red"
-                    variant="light"
-                    onClick={() => handleDelete(route.id)}
-                  >
-                    <FaTrash size={14} />
-                  </ActionIcon>
-                </Group>
-              </Card>
-            ))
-          )}
-        </Stack>
-      ) : (
-        /* 💻 Desktop Table */
-        <Table.ScrollContainer minWidth={600}>
-          <Table striped highlightOnHover withTableBorder>
+      {/* TABLE */}
+      <Card withBorder shadow="sm">
+        <Table.ScrollContainer minWidth={700}>
+          <Table highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>#</Table.Th>
-                <Table.Th>Route Name</Table.Th>
-                <Table.Th>File</Table.Th>
-                <Table.Th w={80}>Actions</Table.Th>
+                <Table.Th ta="center">#</Table.Th>
+                <Table.Th ta="center">Route</Table.Th>
+                <Table.Th ta="center">File</Table.Th>
+                <Table.Th ta="center">Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
 
             <Table.Tbody>
-              {routes.length === 0 ? (
+              {paginatedRoutes.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={4}>
                     <Text ta="center" c="dimmed">
@@ -125,21 +112,43 @@ export default function RoutesPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                routes.map((route, index) => (
+                paginatedRoutes.map((route, i) => (
                   <Table.Tr key={route.id}>
-                    <Table.Td>{index + 1}</Table.Td>
-                    <Table.Td>{route.name}</Table.Td>
-                    <Table.Td>
-                      {route.file ? route.file.name : "No file"}
+                    {/* INDEX */}
+                    <Table.Td ta="center">
+                      {(page - 1) * PAGE_SIZE + i + 1}
                     </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        color="red"
-                        variant="light"
-                        onClick={() => handleDelete(route.id)}
-                      >
-                        <FaTrash size={14} />
-                      </ActionIcon>
+
+                    {/* NAME */}
+                    <Table.Td ta="center">
+                      <Group justify="center" gap="xs">
+                        <IconRoute size={16} />
+                        <Text fw={500}>{route.name}</Text>
+                      </Group>
+                    </Table.Td>
+
+                    {/* FILE */}
+                    <Table.Td ta="center">
+                      {route.file ? (
+                        <Text size="sm">{route.file.name}</Text>
+                      ) : (
+                        <Text size="sm" c="dimmed">
+                          No file
+                        </Text>
+                      )}
+                    </Table.Td>
+
+                    {/* ACTIONS */}
+                    <Table.Td ta="center">
+                      <Group justify="center">
+                        <ActionIcon
+                          color="red"
+                          variant="light"
+                          onClick={() => handleDelete(route.id)}
+                        >
+                          <IconTrash size={18} />
+                        </ActionIcon>
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -147,37 +156,54 @@ export default function RoutesPage() {
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
-      )}
+      </Card>
 
-      {/* Modal */}
+      {/* PAGINATION */}
+      <Group justify="center" mt="md">
+        <Button
+          size="xs"
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+        >
+          Prev
+        </Button>
+
+        <Text>
+          Page {page} / {totalPages}
+        </Text>
+
+        <Button
+          size="xs"
+          disabled={page === totalPages}
+          onClick={() => setPage(page + 1)}
+        >
+          Next
+        </Button>
+      </Group>
+
+      {/* ADD ROUTE MODAL */}
       <Modal opened={opened} onClose={close} title="Add Route" centered>
         <Stack>
           <TextInput
             label="Route Name"
-            placeholder="Enter route name"
             value={name}
             onChange={(e) => setName(e.currentTarget.value)}
           />
 
           <FileInput
             label="Route File (KML / KMZ)"
-            placeholder="Upload file"
             value={file}
             onChange={setFile}
             accept=".kml,.kmz"
-            leftSection={<FaUpload size={16} />}
+            leftSection={<IconUpload size={16} />}
             clearable
           />
 
-          <Group mt="lg" justify="flex-end">
+          <Group justify="flex-end">
             <Button variant="default" onClick={close}>
               Cancel
             </Button>
-
-            <Button
-              onClick={handleAddRoute}
-              disabled={!name.trim()}
-            >
+            <Button disabled={!name.trim()} onClick={handleAddRoute}>
               Add
             </Button>
           </Group>

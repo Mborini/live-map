@@ -64,8 +64,8 @@ export default function BottomSheet({ mapRef }: Props) {
   const [filteredZones, setFilteredZones] = useState<any[]>([]);
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorArea, setSupervisorArea] = useState("");
-  const [supervisorZoneId, setSupervisorZoneId] = useState<number | null>(null);
-
+// ===== Zone =====
+const [zoneId, setZoneId] = useState<number | null>(null);
   // ===== Drawer helpers =====
   const openDrawer = () => {
     if (animating) return;
@@ -173,8 +173,7 @@ export default function BottomSheet({ mapRef }: Props) {
 
       setSupervisorName(foundZone.supervisor_name);
       setSupervisorArea(foundZone.name);
-      setSupervisorZoneId(foundZone.id);
-
+setZoneId(foundZone.id); // ✅ هذا المهم
       markerRef.current?.remove();
       markerRef.current = new mapboxgl.Marker({ color: "#ef4444" })
         .setLngLat(c)
@@ -190,50 +189,74 @@ export default function BottomSheet({ mapRef }: Props) {
     // ✅ مهم: on وليس once
     map.on("click", handleClick);
   };
+  const uploadImageToS3 = async (file: File): Promise<string> => {
+  const res = await fetch("/api/s3/upload-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileType: file.type,
+    }),
+  });
+
+  const { uploadUrl, fileUrl } = await res.json();
+
+  await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
+
+  return fileUrl;
+};
   // ===== Submit =====
-  const handleSubmit = async () => {
-    if (!type || !subType || !coords || !supervisorZoneId) {
-      notifications.show({
-        title: "خطأ",
-        message: "يرجى تعبئة جميع الحقول",
-        color: "red",
-      });
-      return;
-    }
-
-    const fullAddress = [address.address, address.city, address.country]
-      .filter(Boolean)
-      .join(", ");
-
-    const formData = new FormData();
-    formData.append("type", type);
-    formData.append("subType", subType);
-    formData.append("description", desc);
-    formData.append("shift", shift!);
-    formData.append("lng", String(coords[0]));
-    formData.append("lat", String(coords[1]));
-    formData.append("address", fullAddress);
-    formData.append("supervisorZoneId", String(supervisorZoneId));
-    formData.append("user_id", String(session?.user?.id || ""));
-
-    if (image) {
-      formData.append("image", image);
-    }
-
-    await fetch("/api/complaints", {
-      method: "POST",
-      body: formData,
-    });
-
+const handleSubmit = async () => {
+  if (!type || !subType || !coords || !zoneId) {
     notifications.show({
-      title: "تم",
-      message: "تم إرسال البلاغ بنجاح",
-      color: "green",
+      title: "خطأ",
+      message: "يرجى تعبئة جميع الحقول",
+      color: "red",
     });
+    return;
+  }
 
-    closeDrawer();
-  };
+  let imageUrl = null;
 
+  // ✅ رفع الصورة
+  if (image) {
+    imageUrl = await uploadImageToS3(image);
+  }
+
+  await fetch("/api/complaints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: Number(type),
+      subType: Number(subType),
+      description: desc,
+      zone_id: zoneId,
+      coords: {
+        lng: coords[0],
+        lat: coords[1],
+      },
+      address: [address.address, address.city, address.country]
+        .filter(Boolean)
+        .join(", "),
+      image_url: imageUrl, // ✅ هنا
+      user_id: session?.user?.id,
+    }),
+  });
+
+  notifications.show({
+    title: "تم",
+    message: "تم إرسال البلاغ بنجاح",
+    color: "green",
+  });
+
+  closeDrawer();
+};
   // ===== UI =====
   return (
     <>

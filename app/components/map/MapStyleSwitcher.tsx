@@ -14,7 +14,7 @@ export default function MapStyleSwitcher({
   return (
     <button
       onClick={onSwitch}
-      className="absolute top-60 right-2  z-10 bg-white px-2 py-2 rounded-md shadow-lg"
+      className="absolute top-50 right-2  z-10 bg-white px-2 py-2 rounded-md shadow-lg"
     >
     <FaMap />
     </button>

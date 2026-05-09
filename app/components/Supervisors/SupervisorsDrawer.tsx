@@ -14,31 +14,15 @@ type Props = {
 export default function SupervisorDrawer({ opened, onClose, onAdd }: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [shift, setShift] = useState<string | null>(null);
-  const [shifts, setShifts] = useState<Shift[]>([]);
 
 
-  useEffect(() => {
 
-    const loadShifts = async () => {
-      try {
-        const fetchedShifts = await getShifts();
-       
-          setShifts(fetchedShifts);
-      } catch (err) {
-        console.error("Error loading shifts:", err);
-      }
-    };
-
-    loadShifts();
-
-  }, []);
+ 
 
   const handleAdd = () => {
-    if (!name.trim() || !shift) return;
+    if (!name.trim()) return;
 
-    onAdd(name, phone, Number(shift));
-    setShift(null);
+    onAdd(name, phone);
     setName("");
     setPhone("");
     onClose();
@@ -66,17 +50,7 @@ export default function SupervisorDrawer({ opened, onClose, onAdd }: Props) {
           value={phone}
           onChange={(e) => setPhone(e.currentTarget.value)}
         />
-        <Select
-          label="Shift"
-          value={shift}
-          onChange={(value) => setShift(value || null)}
-          placeholder="Pick one"
-          clearable
-          data={shifts.map((item) => ({
-            value: String(item.id),
-            label: item.name,
-          }))}
-        />
+       
 
         <Button fullWidth onClick={handleAdd}>
           Save

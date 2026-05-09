@@ -297,51 +297,50 @@ drawRef.current?.deleteAll();
     });
   };
 
-  // SAVE
-  const handleSave = async () => {
-    const all = drawRef.current?.getAll();
+const handleSave = async () => {
+  const all = drawRef.current?.getAll();
 
-    if (!all?.features.length) {
-      notifications.show({
-        title: "Error",
-        message: "Draw zone first",
-        color: "red",
-      });
-      return;
-    }
-
-    const feature = all.features[0];
-
-    const url = editZoneId ? `/api/zones/${editZoneId}` : "/api/zones";
-    const method = editZoneId ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.values.name,
-        supervisor_id: Number(form.values.supervisor_id),
-        geometry: feature.geometry,
-        shift: Number(form.values.shift),
-      }),
+  if (!all?.features.length) {
+    notifications.show({
+      title: "Error",
+      message: "Draw zone first",
+      color: "red",
     });
+    return;
+  }
 
-    const data = await res.json();
+  const feature = all.features[0];
 
-    if (data.success) {
-      form.reset();
-      setEditZoneId(null);
-      drawRef.current?.deleteAll();
+  const url = editZoneId ? `/api/zones/${editZoneId}` : "/api/zones";
+  const method = editZoneId ? "PUT" : "POST";
 
-      setZones(await fetch("/api/zones").then((r) => r.json()));
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: form.values.name,
+      supervisor_id: Number(form.values.supervisor_id),
+      shift_id: Number(form.values.shift),
+      geometry: feature.geometry,
+    }),
+  });
 
-      notifications.show({
-        title: "Success",
-        message: editZoneId ? "Updated" : "Created",
-        color: "green",
-      });
-    }
-  };
+  const data = await res.json();
+
+  if (data.success) {
+    form.reset();
+    setEditZoneId(null);
+    drawRef.current?.deleteAll();
+
+    setZones(await fetch("/api/zones").then((r) => r.json()));
+
+    notifications.show({
+      title: "Success",
+      message: editZoneId ? "Updated" : "Created",
+      color: "green",
+    });
+  }
+};
 
   return (
     <div className="w-full h-screen relative">

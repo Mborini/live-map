@@ -1,0 +1,41 @@
+.wrapper {
+  display: flex;
+  height: 100vh;
+}
+
+.navbar {
+  width: 68px;
+  background: #0b1320;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.navbarMain {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.link {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #adb5bd;
+}
+
+.link:hover {
+  background-color: #1c2541;
+  color: white;
+}
+
+.content {
+  flex: 1;
+
+  position: relative;
+}

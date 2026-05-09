@@ -74,7 +74,7 @@ export async function PUT(
         supervisor_id = $2,
         geometry = $3,
         shift_id = $4,
-        updated_at = NOW()
+        created_at = NOW()
       WHERE id = $5
       RETURNING *
       `,

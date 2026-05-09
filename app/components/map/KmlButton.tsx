@@ -1,150 +1,142 @@
 "use client";
 
-import { useState } from "react";
-import { parseKmlToGeoJSON } from "../../utils/kmlUtils";
+import { Checkbox, Modal, Stack } from "@mantine/core";
+import { useEffect, useState } from "react";
 import { FaTrash, FaTools } from "react-icons/fa";
 
 type Props = {
   mapRef: any;
 };
 
+type Bin = {
+  id: number;
+  name: string;
+  points: { lat: number; lng: number }[];
+};
+
+// ✅ تحويل Bins المحددة إلى GeoJSON Points
+function binsToGeoJSON(bins: Bin[], enabledIds: number[]) {
+  return {
+    type: "FeatureCollection",
+    features: bins
+      .filter((bin) => enabledIds.includes(bin.id))
+      .flatMap((bin) =>
+        bin.points.map((p) => ({
+          type: "Feature",
+          properties: {
+            binId: bin.id,
+            name: bin.name,
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [p.lng, p.lat],
+          },
+        })),
+      ),
+  };
+}
+
 export default function KmlButton({ mapRef }: Props) {
-  const [active, setActive] = useState(false);
-
-  // 🧠 TOOL STATES
+  const [bins, setBins] = useState<Bin[]>([]);
+  const [enabledBins, setEnabledBins] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("1");
 
-  const sourceId = "kml-source";
+  const sourceId = "bins-source";
+  const layerId = "bins-points";
   const iconId = "bin-icon";
 
-  const toggleKml = async () => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    if (active) {
-      ["kml-line", "kml-point", "kml-polygon"].forEach((id) => {
-        if (map.getLayer(id)) map.removeLayer(id);
+  // ✅ تحميل الـ bins من DB مرة واحدة
+  useEffect(() => {
+    fetch("/api/bins", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        setBins(data);
+        setEnabledBins(data.map((b: Bin) => b.id)); // افتراضياً الكل مفعّل
       });
+  }, []);
 
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
+  // ✅ تحديث الخريطة حسب الاختيارات
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || bins.length === 0) return;
 
-      setActive(false);
-      return;
-    }
+    const geojson = binsToGeoJSON(bins, enabledBins);
 
-    try {
-      const url = "/layers/Tariq/bins.kml";
-
-      const res = await fetch(url, { cache: "no-store" });
-      const kmlText = await res.text();
-
-      const geojson = parseKmlToGeoJSON(kmlText);
-
+    // source
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData(geojson);
+    } else {
       map.addSource(sourceId, {
         type: "geojson",
         data: geojson,
       });
-
-      if (!map.hasImage(iconId)) {
-        map.loadImage("/recycling-bin.png", (error: any, image: any) => {
-          if (error) return;
-
-          if (!map.hasImage(iconId)) {
-            map.addImage(iconId, image);
-          }
-
-          addLayers(map);
-        });
-      } else {
-        addLayers(map);
-      }
-
-      setActive(true);
-    } catch (err) {
-      console.error("KML error:", err);
     }
-  };
 
-  const addLayers = (map: any) => {
-    map.addLayer({
-      id: "kml-line",
-      type: "line",
-      source: sourceId,
-      filter: ["==", "$type", "LineString"],
-      paint: {
-        "line-color": "#ff0000",
-        "line-width": 3,
-      },
-    });
+    // image
+    if (!map.hasImage(iconId)) {
+      map.loadImage("/recycling-bin.png", (err: any, image: any) => {
+        if (err || !image) return;
+        if (!map.hasImage(iconId)) map.addImage(iconId, image);
+        addLayer(map);
+      });
+    } else {
+      addLayer(map);
+    }
+  }, [bins, enabledBins, mapRef]);
+
+  const addLayer = (map: any) => {
+    if (map.getLayer(layerId)) return;
 
     map.addLayer({
-      id: "kml-point",
+      id: layerId,
       type: "symbol",
       source: sourceId,
-      filter: ["==", "$type", "Point"],
       layout: {
         "icon-image": iconId,
-        "icon-size": 0.08,
+        "icon-size": 0.07,
         "icon-allow-overlap": true,
       },
     });
+  };
 
-    map.addLayer({
-      id: "kml-polygon",
-      type: "fill",
-      source: sourceId,
-      filter: ["==", "$type", "Polygon"],
-      paint: {
-        "fill-color": "#ff0000",
-        "fill-opacity": 0.25,
-      },
-    });
+  // ✅ Toggle checkbox
+  const toggleBin = (id: number) => {
+    setEnabledBins((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   return (
     <>
-      {/* 🗑️ KML toggle button */}
-      <button
-        onClick={toggleKml}
-        className="absolute top-40 right-2 z-40 bg-white hover:bg-gray-100 text-gray-800 px-2 py-2 rounded-md shadow-xl cursor-pointer"
-        style={{
-          background: active ? "#2196F3" : "white",
-        }}
-      >
-        <FaTrash size={16} style={{ color: active ? "white" : "inherit" }} />
-      </button>
-
-      {/* 🧰 TOOL BUTTON + PANEL */}
-      <div className="absolute top-50 right-2 z-50">
+      {/* 🧰 BUTTON + PANEL CONTAINER */}
+      <div dir="rtl" className="fixed top-40 right-2 z-[9999]">
+        {/* 🧰 Button */}
         <button
           onClick={() => setOpen(!open)}
-          className="bg-white shadow-lg hover:bg-gray-100 p-2 rounded-md"
+          className="bg-white shadow-lg p-2 rounded-md hover:bg-gray-100"
         >
-          <FaTools size={16} />
+          <FaTrash size={16} />
         </button>
 
-        {open && (
-          <div className="absolute  right-6 w-48 bg-white shadow-xl rounded-md border">
-            <div className="max-h-40 overflow-y-auto p-2 space-y-2">
-              {[1, 2, 3, 4, 5].map((item) => (
-                <label
-                  key={item}
-                  className="flex items-center gap-2 text-sm cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="tool"
-                    value={item}
-                    checked={value === String(item)}
-                    onChange={(e) => setValue(e.target.value)}
-                  />
-                  Option {item}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* ✅ Checkbox Panel */}
+
+        <Modal
+          opened={open}
+          onClose={() => setOpen(false)}
+          title="Bins"
+          size="sm"
+        >
+          <Stack gap="xs">
+            {bins.map((bin) => (
+              <Checkbox
+                key={bin.id}
+                label={bin.name}
+                checked={enabledBins.includes(bin.id)}
+                onChange={() => toggleBin(bin.id)}
+              />
+            ))}
+          </Stack>
+        </Modal>
       </div>
     </>
   );

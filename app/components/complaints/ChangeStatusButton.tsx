@@ -33,10 +33,9 @@ export default function ChangeStatusButton({ complaintId, onSubmit }: Props) {
           open();
         }}
       >
-        تغيير الحالة
-      </Button>
+متابعة      </Button>
 
-      <Modal opened={opened} onClose={close} centered title="تحديث حالة الشكوى">
+      <Modal dir="rtl" opened={opened} onClose={close} centered title="تحديث حالة الشكوى">
         <Stack>
           <Select
             label="الحالة"

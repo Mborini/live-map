@@ -189,4 +189,3 @@ export default function LiveMap({ mapRef }: any) {
     </div>
   );
 }
-``

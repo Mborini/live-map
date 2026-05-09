@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Table,
-  Paper,
+  Card,
   Text,
   Badge,
   Loader,
@@ -13,15 +13,18 @@ import {
   Modal,
   TextInput,
   Pagination,
+  Container,
+  Title,
 } from "@mantine/core";
 import { useSession } from "next-auth/react";
 import {
-  FaSpinner,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaSearch,
-} from "react-icons/fa";
-import { RiArrowGoForwardFill } from "react-icons/ri";
+  IconSearch,
+  IconRefresh,
+  IconClock,
+  IconCheck,
+  IconX,
+} from "@tabler/icons-react";
+import FollowupMapModal from "../components/Followup/FollowupMapModal";
 
 /* ================= TYPES ================= */
 
@@ -29,10 +32,22 @@ type Followup = {
   id: number;
   status_id: number;
   type_name: string;
+  sub_type_name?: string | null;
   complaint_description: string;
   status_name: string;
   followup_description: string | null;
   updated_at: string | null;
+
+  // map props
+  lat: number;
+  lng: number;
+  image_url?: string;
+  shift_name?: string;
+  zone_name?: string;
+  username?: string;
+  supervisor_name?: string;
+  address?: string;
+  created_at?: string;
 };
 
 /* =============== CONSTANTS =============== */
@@ -44,25 +59,25 @@ const STATUS_OPTIONS = [
     id: 1,
     label: "إرجاع إلى جديد",
     color: "green",
-    icon: <RiArrowGoForwardFill size={14} />,
+    icon: <IconRefresh size={14} />,
   },
   {
     id: 2,
     label: "قيد المعالجة",
     color: "orange",
-    icon: <FaSpinner size={14} />,
+    icon: <IconClock size={14} />,
   },
   {
     id: 3,
     label: "مغلقة",
     color: "blue",
-    icon: <FaCheckCircle size={14} />,
+    icon: <IconCheck size={14} />,
   },
   {
     id: 4,
     label: "مرفوضة",
     color: "red",
-    icon: <FaTimesCircle size={14} />,
+    icon: <IconX size={14} />,
   },
 ];
 
@@ -83,7 +98,6 @@ export default function FollowupsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  // ✅ Confirmation state (لكل الكبسات)
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     complaintId: number;
@@ -91,50 +105,39 @@ export default function FollowupsPage() {
     label: string;
   } | null>(null);
 
-  /* ============ SESSION / ROLES ============ */
+  const [mapOpen, setMapOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<Followup | null>(null);
 
+  /* ============ SESSION / ROLES ============ */
   const { data: session } = useSession();
   const userRole = session?.user?.role;
-
-  const CAN_UPDATE_STATUS =
-    userRole === 1 || userRole === 2;
+  const CAN_UPDATE_STATUS = userRole === 1 || userRole === 2;
 
   /* =============== FETCH DATA ================ */
-
   useEffect(() => {
     fetch("/api/complaints/followups")
       .then((res) => res.json())
-      .then((json) => (Array.isArray(json) ? setData(json) : []))
+      .then((json) => setData(Array.isArray(json) ? json : []))
       .finally(() => setLoading(false));
   }, []);
 
   /* ================= SEARCH ================= */
-
   const filteredData = data.filter((row) =>
-    [
-      row.id.toString(),
-      row.type_name,
-      row.followup_description ?? "",
-    ].some((field) =>
-      field.toLowerCase().includes(search.toLowerCase())
-    )
+    [row.id.toString(), row.type_name, row.followup_description ?? ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
   /* ================ PAGINATION ============== */
-
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const paginatedData = filteredData.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE
   );
 
   /* ============== UPDATE STATUS ============= */
-
-  const updateStatus = async (
-    complaintId: number,
-    status: number
-  ) => {
+  const updateStatus = async (complaintId: number, status: number) => {
     setProcessingId(complaintId);
 
     await fetch("/api/complaints/book-followup-status", {
@@ -144,9 +147,7 @@ export default function FollowupsPage() {
         complaintId,
         status,
         description:
-          status === 1
-            ? "إرجاع البلاغ إلى جديد"
-            : "تغيير الحالة من المتابعة",
+          status === 1 ? "إرجاع البلاغ إلى جديد" : "تغيير الحالة من المتابعة",
       }),
     });
 
@@ -159,8 +160,8 @@ export default function FollowupsPage() {
                   ...r,
                   status_id: status,
                   status_name:
-                    STATUS_OPTIONS.find((s) => s.id === status)
-                      ?.label ?? r.status_name,
+                    STATUS_OPTIONS.find((s) => s.id === status)?.label ??
+                    r.status_name,
                 }
               : r
           )
@@ -169,18 +170,30 @@ export default function FollowupsPage() {
     setProcessingId(null);
   };
 
-  if (loading) return <Loader />;
+  if (loading) {
+    return (
+      <Group justify="center" mt="xl">
+        <Loader />
+      </Group>
+    );
+  }
 
   return (
-    <Paper p="lg">
-      <Text fw={700} size="lg" mb="md">
-        متابعة البلاغات
-      </Text>
+    <Container size="xl">
+      {/* HEADER */}
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={2}>متابعة البلاغات</Title>
+          <Text size="sm" c="dimmed">
+            إدارة حالات المتابعة وتحديثها
+          </Text>
+        </div>
+      </Group>
 
-      {/* 🔍 SEARCH */}
+      {/* SEARCH */}
       <TextInput
         placeholder="بحث برقم البلاغ أو النوع أو الوصف"
-        leftSection={<FaSearch size={16} />}
+        leftSection={<IconSearch size={16} />}
         value={search}
         onChange={(e) => {
           setSearch(e.currentTarget.value);
@@ -189,89 +202,112 @@ export default function FollowupsPage() {
         mb="md"
       />
 
-      <Table striped highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>#</Table.Th>
-            <Table.Th>النوع</Table.Th>
-            <Table.Th>الحالة</Table.Th>
-            <Table.Th>وصف المتابعة</Table.Th>
-            <Table.Th>آخر تحديث</Table.Th>
-            <Table.Th>إجراءات</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
+      {/* TABLE */}
+      <Card withBorder shadow="sm">
+        <Table.ScrollContainer minWidth={1000}>
+          <Table highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th ta="center">#</Table.Th>
+                <Table.Th ta="center">النوع</Table.Th>
+                <Table.Th ta="center">الحالة</Table.Th>
+                <Table.Th ta="center">وصف المتابعة</Table.Th>
+                <Table.Th ta="center">آخر تحديث</Table.Th>
+                <Table.Th ta="center">الموقع</Table.Th>
+                <Table.Th ta="center">تغيير الحالة</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
 
-        <Table.Tbody>
-          {paginatedData.map((row) => (
-            <Table.Tr key={row.id}>
-              <Table.Td>{row.id}</Table.Td>
-              <Table.Td>{row.type_name}</Table.Td>
+            <Table.Tbody>
+              {paginatedData.map((row) => (
+                <Table.Tr key={row.id}>
+                  <Table.Td ta="center">{row.id}</Table.Td>
 
-              <Table.Td>
-                <Badge color={STATUS_COLOR_MAP[row.status_id]}>
-                  {row.status_name}
-                </Badge>
-              </Table.Td>
+                  <Table.Td ta="center">
+                    {row.type_name} - {row.sub_type_name ?? "—"}
+                  </Table.Td>
 
-              <Table.Td>{row.followup_description ?? "—"}</Table.Td>
+                  <Table.Td ta="center">
+                    <Badge
+                      variant="light"
+                      color={STATUS_COLOR_MAP[row.status_id]}
+                    >
+                      {row.status_name}
+                    </Badge>
+                  </Table.Td>
 
-              <Table.Td>
-                {row.updated_at
-                  ? new Date(row.updated_at).toLocaleString()
-                  : "—"}
-              </Table.Td>
+                  <Table.Td ta="center">
+                    {row.followup_description ?? "—"}
+                  </Table.Td>
 
-              <Table.Td>
-                {CAN_UPDATE_STATUS && (
-                  <Group gap={8} wrap="nowrap">
-                    {STATUS_OPTIONS.filter(
-                      (s) => s.id !== row.status_id
-                    ).map((s) => (
-                      <Tooltip key={s.id} label={s.label}>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          color={s.color}
-                          leftSection={s.icon}
-                          loading={processingId === row.id}
-                          disabled={processingId !== null}
-                          style={{
-                            width: 140,
-                            justifyContent: "center",
-                          }}
-                          onClick={() => {
-                            setPendingAction({
-                              complaintId: row.id,
-                              status: s.id,
-                              label: s.label,
-                            });
-                            setConfirmOpen(true);
-                          }}
-                        >
-                          {s.label}
-                        </Button>
-                      </Tooltip>
-                    ))}
-                  </Group>
-                )}
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+                  <Table.Td ta="center">
+                    {row.updated_at
+                      ? new Date(row.updated_at).toLocaleString()
+                      : "—"}
+                  </Table.Td>
 
-      {/* 📄 PAGINATION */}
+                  <Table.Td ta="center">
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={() => {
+                        setSelectedRow(row);
+                        setMapOpen(true);
+                      }}
+                    >
+                      عرض الموقع
+                    </Button>
+                  </Table.Td>
+
+                  <Table.Td ta="center">
+                    {CAN_UPDATE_STATUS && (
+                      <Group justify="center" gap="sm">
+                        {STATUS_OPTIONS.filter(
+                          (s) => s.id !== row.status_id
+                        ).map((s) => (
+                          <Tooltip key={s.id} label={s.label}>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color={s.color}
+                              leftSection={s.icon}
+                              loading={processingId === row.id}
+                              disabled={processingId !== null}
+                              onClick={() => {
+                                setPendingAction({
+                                  complaintId: row.id,
+                                  status: s.id,
+                                  label: s.label,
+                                });
+                                setConfirmOpen(true);
+                              }}
+                            >
+                              {s.label}
+                            </Button>
+                          </Tooltip>
+                        ))}
+                      </Group>
+                    )}
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
+      </Card>
+
+      {/* PAGINATION */}
       {totalPages > 1 && (
         <Pagination
           value={page}
           onChange={setPage}
           total={totalPages}
           mt="md"
-         
+          position="center"
         />
       )}
 
-      {/* ✅ CONFIRM MODAL (لكل الكبسات) */}
+      {/* CONFIRM MODAL */}
       <Modal
         opened={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -284,10 +320,7 @@ export default function FollowupsPage() {
         </Text>
 
         <Group justify="flex-end">
-          <Button
-            variant="default"
-            onClick={() => setConfirmOpen(false)}
-          >
+          <Button variant="default" onClick={() => setConfirmOpen(false)}>
             إلغاء
           </Button>
           <Button
@@ -306,6 +339,25 @@ export default function FollowupsPage() {
           </Button>
         </Group>
       </Modal>
-    </Paper>
+
+      {/* MAP MODAL */}
+      {selectedRow && (
+        <FollowupMapModal
+          opened={mapOpen}
+          onClose={() => setMapOpen(false)}
+          lat={selectedRow.lat}
+          lng={selectedRow.lng}
+          imageUrl={selectedRow.image_url}
+          description={selectedRow.complaint_description}
+          shift={selectedRow.shift_name}
+          zone={selectedRow.zone_name}
+          user={selectedRow.username}
+          supervisor={selectedRow.supervisor_name}
+          address={selectedRow.address}
+          created_at={selectedRow.created_at}
+          id={selectedRow.id}
+        />
+      )}
+    </Container>
   );
 }

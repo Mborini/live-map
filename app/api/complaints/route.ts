@@ -8,12 +8,13 @@ export async function POST(req: Request) {
       type,
       subType,
       description,
-      shift,
+
       coords,
       address,
-      supervisorZoneId,
       createdAt,
       user_id,
+      zone_id,
+      image_url,
     } = body;
 
     const result = await pool.query(
@@ -23,34 +24,33 @@ export async function POST(req: Request) {
         type,
         sub_type,
         description,
-        shift,
+        image_url,
+
         lng,
         lat,
         address,
-        
-zone_shift_id
-,
+        zone_id,
         created_at,
         user_id,
         status
       )
       VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10 ,$11)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *
       `,
-      [
-        type,
-        subType,
-        description,
-        shift,
-        coords?.lng ?? null,
-        coords?.lat ?? null,
-        address,
-        supervisorZoneId,
-        createdAt ?? new Date().toISOString(),
-        user_id ?? null,
-        1, // default status (pending)
-      ],
+     [
+  type,
+  subType,
+  description,
+  image_url,
+  coords?.lng ?? null,
+  coords?.lat ?? null,
+  address,
+  zone_id, // ✅ أضف الفاصلة
+  createdAt ?? new Date(),
+  user_id ?? null,
+  1,
+]
     );
     const row = result.rows[0];
 
@@ -70,51 +70,42 @@ zone_shift_id
 }
 export async function GET() {
   try {
-    const result = await pool.query(`SELECT
+    const result = await pool.query(`
+SELECT
   c.id,
   c.description,
   c.address,
   c.created_at,
   c.lng,
   c.lat,
+  c.image_url,
 
-  -- type / subtype
   t.name  AS type_name,
   st.name AS sub_type_name,
-
-  -- shift
   sh.name AS shift_name,
 
-  -- zone
-  z.name AS zone_name,
-
-  -- supervisor
-  sp.id   AS supervisor_id,
-  sp.name AS supervisor_name,
-
-  -- status
   c.status AS status_id,
-  cs.name  AS status_name,
+  cs.name AS status_name,
 
-  -- user
-  u.username AS username
+  u.username AS username,
+
+  z.name AS zone_name,
+  s.name AS supervisor_name
 
 FROM complaints c
 
-LEFT JOIN users u              ON c.user_id = u.id
+LEFT JOIN users u               ON c.user_id = u.id
 LEFT JOIN complaint_statuses cs ON c.status = cs.id
-LEFT JOIN types t              ON c.type = t.id
-LEFT JOIN subtypes st          ON c.sub_type = st.id
-LEFT JOIN shifts sh            ON c.shift = sh.id
+LEFT JOIN types t               ON c.type = t.id
+LEFT JOIN subtypes st           ON c.sub_type = st.id
 
--- ✅ الربط الصحيح
-LEFT JOIN zone_shifts zs       ON c.zone_shift_id = zs.id
-LEFT JOIN zones z              ON zs.zone_id = z.id
-LEFT JOIN supervisors sp       ON zs.supervisor_id = sp.id
+LEFT JOIN zones z               ON c.zone_id = z.id
+LEFT JOIN shifts sh             ON z.shift_id = sh.id
+LEFT JOIN supervisors s         ON z.supervisor_id = s.id
 
 WHERE c.status = 1
 ORDER BY c.created_at DESC;
-    `);
+`);
 
     const rows = result.rows.map((r: any) => ({
       ...r,
